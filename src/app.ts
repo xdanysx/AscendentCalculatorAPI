@@ -22,9 +22,18 @@ const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "0.0.0.0";
 
 app.set("trust proxy", 1);
+// 1) Ganz früh: falls irgendwo X-Frame-Options gesetzt wird, wieder entfernen
+app.use((req, res, next) => {
+  res.removeHeader("X-Frame-Options");
+  // manche Umgebungen setzen es klein/anders; das hilft nicht immer, schadet aber nicht
+  res.removeHeader("x-frame-options");
+  next();
+});
+
+// 2) Danach Helmet: CSP sauber setzen + frameguard aus
 app.use(
   helmet({
-    frameguard: false, // wir setzen XFO selbst (oder gar nicht)
+    frameguard: false,
     contentSecurityPolicy: {
       useDefaults: true,
       directives: {
