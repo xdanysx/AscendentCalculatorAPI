@@ -8,7 +8,7 @@
     :root { color-scheme: light dark; }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; }
     header { padding: 18px 20px; border-bottom: 1px solid rgba(127,127,127,.35); }
-    main { display: grid; grid-template-columns: 420px 1fr; gap: 16px; padding: 16px; }
+    main { display: grid; grid-template-columns: 440px 1fr; gap: 16px; padding: 16px; }
     @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
 
     .card { border: 1px solid rgba(127,127,127,.35); border-radius: 14px; padding: 14px; }
@@ -19,20 +19,42 @@
     button { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(127,127,127,.45); background: transparent; color: inherit; cursor: pointer; }
     button.primary { border-color: rgba(127,127,127,.75); font-weight: 600; }
     button:disabled { opacity: .6; cursor: not-allowed; }
+
     .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
     .hint { font-size: 12px; opacity: .8; }
     .error { color: #c23; font-weight: 600; }
     .ok { color: #2a7; font-weight: 600; }
 
-    .split { display: grid; grid-template-columns: 1fr 360px; gap: 16px; }
+    .split { display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
     @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
 
     pre { white-space: pre-wrap; word-break: break-word; margin: 0; font-size: 12px; line-height: 1.35; }
-    .kv { display: grid; grid-template-columns: 160px 1fr; gap: 8px 10px; font-size: 13px; margin-top: 10px; }
+    .kv { display: grid; grid-template-columns: 180px 1fr; gap: 8px 10px; font-size: 13px; margin-top: 10px; }
     .kv div:nth-child(odd) { opacity: .8; }
+
     .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
     .chip { border: 1px solid rgba(127,127,127,.45); border-radius: 999px; padding: 6px 10px; font-size: 12px; }
-    canvas { width: 100%; height: auto; display: block; }
+
+    .sectionTitle { font-weight: 700; margin: 14px 0 8px; }
+    .mini { font-size: 12px; opacity: .82; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 980px) { .grid2 { grid-template-columns: 1fr; } }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid rgba(127,127,127,.25); padding: 8px 6px; text-align: left; }
+    th { opacity: .85; font-size: 12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+
+    canvas { width: 100%; height: auto; display: block; border-radius: 12px; border: 1px solid rgba(127,127,127,.25); }
+    .legend { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .legendItem { display:flex; gap:8px; align-items:center; font-size:12px; opacity:.9; }
+    .dot { width:10px; height:10px; border-radius:999px; border:1px solid rgba(127,127,127,.6); background: rgba(220,220,220,.95); }
+
+    details { border: 1px solid rgba(127,127,127,.25); border-radius: 12px; padding: 10px 12px; }
+    summary { cursor: pointer; font-weight: 700; }
+    details > div { margin-top: 10px; }
+
+    .smallButtons { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
   </style>
 </head>
 <body>
@@ -40,9 +62,11 @@
     <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;">
       <div>
         <div style="font-weight:700; font-size:16px;">Chart Tester</div>
-        <div class="hint">POST /v1/astro/chart – Eingaben testen + Planet-Visualisierung (Zodiac-Rad)</div>
+        <div class="hint">
+          POST <span class="mono">/v1/astro/chart</span> – Geburtsdaten testen, Planetenpositionen anzeigen, Rad visualisieren.
+        </div>
       </div>
-      <div class="hint">Tipp: Bei Render-URL CORS korrekt setzen (CORS_ORIGINS)</div>
+      <div class="hint">Wenn Render: <span class="mono">CORS_ORIGINS</span> setzen oder leer lassen (allow all)</div>
     </div>
   </header>
 
@@ -52,7 +76,7 @@
         <div>
           <label for="baseUrl">API Base URL</label>
           <input id="baseUrl"/>
-          <div class="hint" style="margin-top:6px;">Beispiel Render: https://ascendentcalculatorapi.onrender.com</div>
+          <div class="hint" style="margin-top:6px;">Beispiel: <span class="mono">http://localhost:3000</span> oder Render-URL</div>
         </div>
         <div>
           <label for="endpoint">Endpoint</label>
@@ -63,7 +87,7 @@
       <div class="row" style="margin-top:10px;">
         <div>
           <label for="date">Datum (YYYY-MM-DD)</label>
-          <input id="date" value="1998-11-24" />
+          <input id="date" value="1998-07-12" />
         </div>
         <div>
           <label for="time">Uhrzeit (HH:mm)</label>
@@ -86,6 +110,9 @@
         <div>
           <label for="tz">Timezone (optional)</label>
           <input id="tz" value="Europe/Berlin" />
+          <div class="hint" style="margin-top:6px;">
+            Leer lassen: API kann TZ aus Koordinaten ableiten (wenn du das so implementiert hast).
+          </div>
         </div>
         <div>
           <label for="houseSystem">House System</label>
@@ -98,23 +125,42 @@
             <option value="E">Equal (E)</option>
             <option value="W">Whole Sign (W)</option>
           </select>
+          <div class="hint" style="margin-top:6px;">
+            Häuser: teilen den Himmel in 12 Abschnitte. Unterschiedliche Systeme → andere Cusp-Winkel.
+          </div>
         </div>
         <div>
           <label for="apiKey">API Key (optional)</label>
           <input id="apiKey" placeholder="Bearer token" />
+          <div class="hint" style="margin-top:6px;">Wenn REQUIRE_API_KEY=true in der API aktiv ist.</div>
         </div>
       </div>
 
       <div class="actions">
         <button class="primary" id="btnRun">Berechnen</button>
         <button id="btnFillExample">Beispiel setzen</button>
+        <button id="btnCopyJson">Copy JSON</button>
+        <button id="btnCopyCurl">Copy curl</button>
         <span id="status" class="hint"></span>
       </div>
 
       <div style="margin-top:12px;">
         <label for="requestPreview">Request JSON</label>
-        <textarea id="requestPreview" rows="8" spellcheck="false"></textarea>
-        <div class="hint" style="margin-top:6px;">Hinweis: Du kannst das JSON hier auch manuell editieren und berechnen.</div>
+        <textarea id="requestPreview" rows="9" spellcheck="false"></textarea>
+        <div class="hint" style="margin-top:6px;">
+          Du kannst das JSON hier editieren. Validierungsfehler landen unten in “Issues”.
+        </div>
+      </div>
+
+      <div class="sectionTitle">Erklärung (kurz)</div>
+      <div class="mini">
+        <div><b>ASC</b> = Ekliptik-Längengrad am Osthorizont. <b>Sun/Moon</b> = ekliptische Längengrade. <b>Planeten</b> genauso.</div>
+        <div style="margin-top:6px;">
+          <b>Zeichen</b>: 12 Segmente à 30° (0° Widder, 30° Stier, ...). <b>Grad im Zeichen</b> = Längengrad modulo 30°.
+        </div>
+        <div style="margin-top:6px;">
+          <b>Chart Ruler</b>: Herrscherplanet des Ascendent-Zeichens (klassisch). Beispiel: ASC Libra → Venus.
+        </div>
       </div>
     </section>
 
@@ -130,28 +176,88 @@
 
           <div class="chips" id="chips"></div>
 
-          <div style="margin-top:12px;">
-            <div style="font-weight:700; margin-bottom:8px;">JSON</div>
-            <pre id="outJson">{}</pre>
+          <div class="grid2" style="margin-top:12px;">
+            <div>
+              <div class="sectionTitle">Planeten</div>
+              <div class="mini">Longitudes in Grad (0–360), Zeichen + Grad-im-Zeichen, optional Haus.</div>
+              <div style="margin-top:10px; overflow:auto;">
+                <table id="planetTable">
+                  <thead>
+                    <tr>
+                      <th>Body</th>
+                      <th>Sign</th>
+                      <th class="mono">Lon</th>
+                      <th class="mono">° in Sign</th>
+                      <th>House</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <div class="sectionTitle">Häuser</div>
+              <div class="mini">Cusp 1..12. Cusp 1 entspricht dem ASC (Haus 1 Start).</div>
+              <div style="margin-top:10px; overflow:auto;">
+                <table id="houseTable">
+                  <thead>
+                    <tr>
+                      <th>House</th>
+                      <th>Sign</th>
+                      <th class="mono">Cusp Lon</th>
+                      <th class="mono">° in Sign</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+
+              <details style="margin-top:10px;">
+                <summary>Was bedeutet “House of planet”?</summary>
+                <div class="mini">
+                  Ein Planet gehört zu dem Haus-Segment, in das sein Längengrad fällt.
+                  Technisch: du suchst das Intervall zwischen Cusp(i) und Cusp(i+1) (zirkulär).
+                </div>
+              </details>
+            </div>
           </div>
 
-          <div style="margin-top:12px;">
-            <div style="font-weight:700; margin-bottom:8px;">Issues</div>
-            <pre id="outIssues">[]</pre>
-          </div>
+          <div class="sectionTitle">JSON</div>
+          <pre id="outJson">{}</pre>
+
+          <div class="sectionTitle">Issues</div>
+          <pre id="outIssues">[]</pre>
         </div>
 
         <div>
-          <div style="font-weight:700; margin-bottom:8px;">Zodiac-Rad</div>
-          <canvas id="wheel" width="700" height="700"></canvas>
-          <div class="hint" style="margin-top:8px;">
-            Darstellung: Kreis = 0–360°, 12 Segmente à 30°. Punkte = Bodies. 0° Widder rechts (klassische Mathe-Achse).
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:700;">Zodiac-Rad</div>
+            <label class="hint" style="display:flex; gap:8px; align-items:center; margin:0;">
+              <input id="toggleHouses" type="checkbox" checked style="width:auto;"/>
+              Häuser anzeigen
+            </label>
           </div>
+          <canvas id="wheel" width="700" height="700"></canvas>
+
+          <div class="legend">
+            <div class="legendItem"><span class="dot"></span> Bodies</div>
+            <div class="legendItem"><span class="dot" style="background:rgba(127,127,127,.0)"></span> Segmente = Zeichen</div>
+          </div>
+
+          <details style="margin-top:12px;">
+            <summary>Wie liest man das Rad?</summary>
+            <div class="mini">
+              0° Widder liegt rechts. Winkel steigen gegen den Uhrzeigersinn (Mathe-Konvention).
+              Die Punkte liegen auf dem Kreis bei ihrem ekliptischen Längengrad.
+              Wenn “Häuser anzeigen” an ist, siehst du zusätzliche Linien für Cusp 1..12 sowie Marker für ASC/MC.
+            </div>
+          </details>
         </div>
       </div>
     </section>
   </main>
 
-<script defer src="/demo.js"></script>
+  <script defer src="/demo.js"></script>
 </body>
 </html>
