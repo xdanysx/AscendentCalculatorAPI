@@ -24,11 +24,11 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 app.set("trust proxy", 1);
 app.use(
   helmet({
-    frameguard: false,
+    frameguard: false, // wir setzen XFO selbst (oder gar nicht)
     contentSecurityPolicy: {
       useDefaults: true,
       directives: {
-        "frame-ancestors": ["'self'", "https://dspinella.de"],
+        "frame-ancestors": ["'self'", "https://dspinella.de", "https://www.dspinella.de"],
       },
     },
   })
