@@ -8,13 +8,6 @@ import path from "path"
 
 import { computeChart } from "./astro/chart";
 import { buildOpenApi } from "./openapi";
-import { bodyLongitude, type Body } from "./astro/bodies";
-import { AstroRequestSchema } from "./astro/schema";
-import { normalizeAstroTime } from "./astro/time";
-import { computeAscendant } from "./astro/ascendant";
-import { zodiacFromEclipticLongitude } from "./astro/zodiac";
-import { computeElements } from "./astro/elements";
-
 
 export const app = express();
 

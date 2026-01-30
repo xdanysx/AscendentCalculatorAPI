@@ -17,7 +17,23 @@ exports.app = (0, express_1.default)();
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "0.0.0.0";
 exports.app.set("trust proxy", 1);
-exports.app.use((0, helmet_1.default)());
+// 1) Ganz früh: falls irgendwo X-Frame-Options gesetzt wird, wieder entfernen
+exports.app.use((req, res, next) => {
+    res.removeHeader("X-Frame-Options");
+    // manche Umgebungen setzen es klein/anders; das hilft nicht immer, schadet aber nicht
+    res.removeHeader("x-frame-options");
+    next();
+});
+// 2) Danach Helmet: CSP sauber setzen + frameguard aus
+exports.app.use((0, helmet_1.default)({
+    frameguard: false,
+    contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+            "frame-ancestors": ["'self'", "https://dspinella.de", "https://www.dspinella.de"],
+        },
+    },
+}));
 const corsOrigins = (process.env.CORS_ORIGINS ?? "")
     .split(",")
     .map(s => s.trim())
