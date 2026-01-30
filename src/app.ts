@@ -24,20 +24,13 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 app.set("trust proxy", 1);
 app.use(
   helmet({
-    frameguard: false, // X-Frame-Options abschalten
+    frameguard: false,
     contentSecurityPolicy: {
+      useDefaults: true,
       directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:"],
-        connectSrc: ["'self'"],
-        frameAncestors: [
-          "'self'",
-          "https://dspinella.de"
-        ]
-      }
-    }
+        "frame-ancestors": ["'self'", "https://dspinella.de"],
+      },
+    },
   })
 );
 
