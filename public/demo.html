@@ -51,7 +51,7 @@
       <div class="row">
         <div>
           <label for="baseUrl">API Base URL</label>
-          <input id="baseUrl" placeholder="http://localhost:3000" value="http://localhost:3000" />
+          <input id="baseUrl"/>
           <div class="hint" style="margin-top:6px;">Beispiel Render: https://ascendentcalculatorapi.onrender.com</div>
         </div>
         <div>
@@ -63,7 +63,7 @@
       <div class="row" style="margin-top:10px;">
         <div>
           <label for="date">Datum (YYYY-MM-DD)</label>
-          <input id="date" value="1998-07-12" />
+          <input id="date" value="1998-11-24" />
         </div>
         <div>
           <label for="time">Uhrzeit (HH:mm)</label>
@@ -74,11 +74,11 @@
       <div class="row" style="margin-top:10px;">
         <div>
           <label for="lat">Latitude</label>
-          <input id="lat" type="number" step="0.000001" value="50.94" />
+          <input id="lat" type="number" step="0.01" value="50.94" />
         </div>
         <div>
           <label for="lon">Longitude</label>
-          <input id="lon" type="number" step="0.000001" value="6.96" />
+          <input id="lon" type="number" step="0.01" value="6.96" />
         </div>
       </div>
 
@@ -90,8 +90,8 @@
         <div>
           <label for="houseSystem">House System</label>
           <select id="houseSystem">
-            <option value="">(default)</option>
-            <option value="P" selected>Placidus (P)</option>
+            <option value="" selected>(default)</option>
+            <option value="P">Placidus (P)</option>
             <option value="K">Koch (K)</option>
             <option value="R">Regiomontanus (R)</option>
             <option value="C">Campanus (C)</option>

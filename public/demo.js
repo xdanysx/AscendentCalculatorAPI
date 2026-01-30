@@ -1,3 +1,5 @@
+  document.getElementById("baseUrl").value = location.origin;
+  
   const $ = (id) => document.getElementById(id);
 
   const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
