@@ -8,6 +8,18 @@ function toJulianDayUT(dtUtc: DateTime): number {
   return dtUtc.toMillis() / 86400000 + 2440587.5;
 }
 
+function isValidTZ(tz: string) {
+  return DateTime.now().setZone(tz).isValid;
+}
+
+function safeTzLookup(lat: number, lon: number): string | null {
+  try {
+    return tzLookup(lat, lon);
+  } catch {
+    return null;
+  }
+}
+
 export function normalizeAstroTime(input: {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm or HH:mm:ss
@@ -18,22 +30,46 @@ export function normalizeAstroTime(input: {
 }): { normalized: AstroNormalizedTime; issues: AstroIssue[] } {
   const issues: AstroIssue[] = [];
 
-  const tz =
-    input.tz?.trim() ||
-    (() => {
-      const guessed = tzLookup(input.lat, input.lon);
+  // 1) Resolve timezone (validate provided tz, otherwise derive from coords)
+  let tz: string;
+
+  const providedTz = input.tz?.trim();
+  if (providedTz) {
+    if (!isValidTZ(providedTz)) {
       issues.push({
-        code: "TZ_GUESSED_FROM_COORDS",
-        severity: "warning",
-        message: `Timezone not provided. Derived tz="${guessed}" from lat/lon.`
+        code: "INVALID_TIMEZONE",
+        severity: "error",
+        message: `Invalid IANA timezone: "${providedTz}".`
       });
-      return guessed;
-    })();
 
-  // Build local datetime
+      // Fallback to keep function deterministic
+      const fallback = safeTzLookup(input.lat, input.lon) ?? "UTC";
+      issues.push({
+        code: "TZ_FALLBACK_USED",
+        severity: "warning",
+        message: `Falling back to tz="${fallback}".`
+      });
+
+      tz = fallback;
+    } else {
+      tz = providedTz;
+    }
+  } else {
+    const guessed = safeTzLookup(input.lat, input.lon);
+    tz = guessed ?? "UTC";
+
+    issues.push({
+      code: guessed ? "TZ_GUESSED_FROM_COORDS" : "TZ_LOOKUP_FAILED",
+      severity: guessed ? "warning" : "warning",
+      message: guessed
+        ? `Timezone not provided. Derived tz="${tz}" from lat/lon.`
+        : `Timezone not provided and tz lookup failed. Falling back to tz="UTC".`
+    });
+  }
+
+  // 2) Build local datetime in resolved timezone
   const isoLocal = `${input.date}T${input.time}`;
-
-  let local = DateTime.fromISO(isoLocal, { zone: tz });
+  const local = DateTime.fromISO(isoLocal, { zone: tz });
 
   if (!local.isValid) {
     // invalid local time (can happen in DST gaps)
@@ -43,10 +79,10 @@ export function normalizeAstroTime(input: {
       message: `Local datetime "${isoLocal}" is invalid for timezone "${tz}".`
     });
 
-    // Return something deterministic, but mark error
-    // Use "now" UTC as fallback only to avoid crashes; caller should treat error as fatal
+    // Deterministic fallback (caller should treat error as fatal)
     const fallbackUtc = DateTime.utc();
     const jdUt = toJulianDayUT(fallbackUtc);
+
     return {
       normalized: {
         tz,
@@ -59,12 +95,17 @@ export function normalizeAstroTime(input: {
     };
   }
 
-  // Optional override for weird inputs:
+  // 3) Optional: utcOffsetMinutes override for ambiguous/historical edge cases
   if (typeof input.utcOffsetMinutes === "number") {
-    // Recreate local time with fixed offset
-    // This is useful if user knows exact offset (historical edge-cases, ambiguous DST)
     const offset = input.utcOffsetMinutes;
-    const fixed = DateTime.fromISO(isoLocal, { zone: `UTC${offset >= 0 ? "+" : ""}${(offset / 60).toFixed(0)}` });
+
+    // Create a fixed-offset DateTime for the same wall-clock time
+    // Note: Luxon supports fixed offsets via "UTC+X" / "UTC-X"
+    const hours = Math.trunc(offset / 60);
+    const zone = `UTC${hours >= 0 ? "+" : ""}${hours}`;
+
+    const fixed = DateTime.fromISO(isoLocal, { zone });
+
     if (fixed.isValid) {
       issues.push({
         code: "UTC_OFFSET_OVERRIDE_USED",
@@ -74,6 +115,7 @@ export function normalizeAstroTime(input: {
 
       const utc = fixed.toUTC();
       const jdUt = toJulianDayUT(utc);
+
       return {
         normalized: {
           tz,
@@ -88,11 +130,13 @@ export function normalizeAstroTime(input: {
       issues.push({
         code: "UTC_OFFSET_OVERRIDE_INVALID",
         severity: "warning",
-        message: "utcOffsetMinutes provided but could not be applied. Falling back to tz-based conversion."
+        message:
+          "utcOffsetMinutes provided but could not be applied. Falling back to tz-based conversion."
       });
     }
   }
 
+  // 4) Default path: convert local -> UTC -> JD
   const utc = local.toUTC();
   const jdUt = toJulianDayUT(utc);
 

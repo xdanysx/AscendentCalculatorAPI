@@ -172,11 +172,17 @@ async function handleChart(req: express.Request, res: express.Response) {
 v1.post("/astro/chart", handleChart);
 
 app.use("/v1", v1);
-
+app.get("/", (_req, res) => {
+  res.json({
+    ok: true,
+    service: "ascendentcalculatorapi",
+    docs: "/docs",
+    health: "/v1/health"
+  });
+});
 const openapi = buildOpenApi();
 app.get("/openapi.json", (_req, res) => res.json(openapi));
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi));
-app.get("/", (_req, res) => res.redirect("/docs"));
 app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error("UNHANDLED_ERROR", (req as any).requestId, err);
   res.status(500).json({
