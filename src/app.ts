@@ -4,6 +4,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import crypto from "node:crypto"; 
 import swaggerUi from "swagger-ui-express";
+import path from "path"
 
 import { buildOpenApi } from "./openapi";
 import { bodyLongitude, type Body } from "./astro/bodies";
@@ -20,6 +21,15 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 
 app.set("trust proxy", 1);
 app.use(helmet());
+
+// Static demo hosting
+const publicDir = path.join(process.cwd(), "public");
+app.use(express.static(publicDir));
+
+// Optional: Root direkt zur Demo
+app.get("/", (_req, res) => res.redirect("/demo.html"));
+
+
 const corsOrigins = (process.env.CORS_ORIGINS ?? "")
   .split(",")
   .map(s => s.trim())
