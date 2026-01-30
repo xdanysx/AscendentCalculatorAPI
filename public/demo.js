@@ -1,21 +1,46 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
-  // default base url
+  // Initial setup
   $("baseUrl").value = location.origin;
 
-  const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+  // --- Konfiguration & Daten ---
+
+  // Elemente Zuordnung für Farben
+  const SIGN_ELEMENTS = {
+    Aries: "fire", Leo: "fire", Sagittarius: "fire",
+    Taurus: "earth", Virgo: "earth", Capricorn: "earth",
+    Gemini: "air", Libra: "air", Aquarius: "air",
+    Cancer: "water", Scorpio: "water", Pisces: "water"
+  };
+
+  const SIGNS_DE = {
+    Aries: "Widder", Taurus: "Stier", Gemini: "Zwillinge", Cancer: "Krebs",
+    Leo: "Löwe", Virgo: "Jungfrau", Libra: "Waage", Scorpio: "Skorpion",
+    Sagittarius: "Schütze", Capricorn: "Steinbock", Aquarius: "Wassermann", Pisces: "Fische"
+  };
+
   const SIGN_GLYPH = {
     Aries:"♈", Taurus:"♉", Gemini:"♊", Cancer:"♋", Leo:"♌", Virgo:"♍",
     Libra:"♎", Scorpio:"♏", Sagittarius:"♐", Capricorn:"♑", Aquarius:"♒", Pisces:"♓"
   };
 
-  const BODY_LABEL = {
-    ascendant:"ASC", mc:"MC",
-    sun:"Sun", moon:"Moon",
-    mercury:"Mercury", venus:"Venus", mars:"Mars", jupiter:"Jupiter", saturn:"Saturn",
-    uranus:"Uranus", neptune:"Neptune", pluto:"Pluto"
+  const BODY_LABEL_DE = {
+    ascendant:"Aszendent (AC)", mc:"Medium Coeli (MC)",
+    sun:"Sonne", moon:"Mond",
+    mercury:"Merkur", venus:"Venus", mars:"Mars", jupiter:"Jupiter", saturn:"Saturn",
+    uranus:"Uranus", neptune:"Neptun", pluto:"Pluto",
+    chiron:"Chiron", lilith:"Lilith", node:"Mondknoten"
   };
+
+  function getSignInfo(signEnglish) {
+    if (!signEnglish) return { label: "-", glyph: "", element: "air" };
+    return {
+      label: SIGNS_DE[signEnglish] || signEnglish,
+      glyph: SIGN_GLYPH[signEnglish] || "",
+      element: SIGN_ELEMENTS[signEnglish] || "air"
+    };
+  }
 
   function clamp360(x) {
     let v = Number(x);
@@ -24,6 +49,8 @@
     if (v < 0) v += 360;
     return v;
   }
+
+  // --- Request Building ---
 
   function buildRequestFromFields() {
     const date = $("date").value.trim();
@@ -44,66 +71,41 @@
   }
 
   function getRequestPreview() {
-    try {
-      return JSON.parse($("requestPreview").value);
-    } catch {
-      return null;
-    }
+    try { return JSON.parse($("requestPreview").value); } catch { return null; }
   }
 
   function setStatus(text, kind) {
     const el = $("status");
     el.textContent = text || "";
-    el.className = kind === "error" ? "hint error" : kind === "ok" ? "hint ok" : "hint";
+    el.className = "status " + (kind || "");
   }
 
   function apiUrl() {
     const base = $("baseUrl").value.trim().replace(/\/+$/,"");
     const ep0 = $("endpoint").value.trim();
-    const ep = ep0.startsWith("/") ? ep0 : "/" + ep0;
-    return base + ep;
-  }
-
-  function fmtBody(b) {
-    if (!b) return "-";
-    const sign = b.sign ?? "-";
-    const deg = (typeof b.degreeInSign === "number") ? b.degreeInSign.toFixed(2) : (b.degreeInSign ?? "-");
-    const lon = (typeof b.longitude === "number") ? b.longitude.toFixed(4) : (b.longitude ?? "-");
-    const house = (typeof b.house === "number") ? `, H${b.house}` : "";
-    return `${sign} ${deg}° (${lon}°)${house}`;
+    return base + (ep0.startsWith("/") ? ep0 : "/" + ep0);
   }
 
   async function copyText(s) {
     try {
       await navigator.clipboard.writeText(s);
-      setStatus("Kopiert.", "ok");
+      setStatus("Kopiert!", "ok");
+      setTimeout(() => setStatus(""), 2000);
     } catch {
-      setStatus("Copy fehlgeschlagen (Browser-Rechte).", "error");
+      setStatus("Fehler beim Kopieren", "error");
     }
   }
 
-  function buildCurl(reqObj) {
-    const url = apiUrl();
-    const apiKey = $("apiKey").value.trim();
-    const auth = apiKey ? (apiKey.startsWith("Bearer ") ? apiKey : `Bearer ${apiKey}`) : "";
-
-    // Works in bash/zsh. For PowerShell use Invoke-RestMethod.
-    const lines = [
-      `curl -X POST "${url}" \\`,
-      `  -H "Content-Type: application/json" \\`
-    ];
-    if (auth) lines.push(`  -H "Authorization: ${auth}" \\`);
-    lines.push(`  -d '${JSON.stringify(reqObj)}'`);
-    return lines.join("\n");
-  }
+  // --- API Calls ---
 
   async function callApi() {
-    setStatus("Sende Request ...");
+    setStatus("Lade...", "ok");
     $("btnRun").disabled = true;
+    $("outputSection").style.opacity = "0.6";
 
     const reqObj = getRequestPreview();
     if (!reqObj) {
-      setStatus("Request JSON ist ungültig.", "error");
+      setStatus("JSON ungültig", "error");
       $("btnRun").disabled = false;
       return;
     }
@@ -112,381 +114,360 @@
     const apiKey = $("apiKey").value.trim();
     if (apiKey) headers["Authorization"] = apiKey.startsWith("Bearer ") ? apiKey : `Bearer ${apiKey}`;
 
-    let res, text;
-    const url = apiUrl();
-
+    let res, text, data;
     try {
-      res = await fetch(url, { method: "POST", headers, body: JSON.stringify(reqObj) });
+      res = await fetch(apiUrl(), { method: "POST", headers, body: JSON.stringify(reqObj) });
       text = await res.text();
+      try { data = JSON.parse(text); } catch {}
     } catch (e) {
-      setStatus("Netzwerkfehler: " + String(e), "error");
+      setStatus("Netzwerkfehler", "error");
       $("btnRun").disabled = false;
       return;
     }
 
     $("httpMeta").textContent = `HTTP ${res.status}`;
-
-    let data = null;
-    try { data = JSON.parse(text); } catch {}
+    $("outJson").textContent = JSON.stringify(data || text, null, 2);
+    $("outIssues").textContent = JSON.stringify(data?.issues || [], null, 2);
 
     if (!res.ok) {
-      $("outJson").textContent = text || "{}";
-      $("outIssues").textContent = JSON.stringify(data?.details ?? data?.issues ?? [], null, 2);
-      setStatus("Fehler (siehe JSON/Issues).", "error");
-      renderSummary(null);
-      renderTables(null);
-      drawWheel(null);
-      $("btnRun").disabled = false;
-      return;
+      setStatus("API Fehler", "error");
+      renderAll(null);
+    } else {
+      setStatus("Berechnet", "ok");
+      renderAll(data);
     }
 
-    $("outJson").textContent = JSON.stringify(data, null, 2);
-    $("outIssues").textContent = JSON.stringify(data.issues ?? [], null, 2);
-
-    setStatus("OK", "ok");
-    renderSummary(data);
-    renderTables(data);
-    drawWheel(data);
+    $("outputSection").style.opacity = "1";
+    $("outputSection").style.pointerEvents = "auto";
     $("btnRun").disabled = false;
   }
 
-  function renderSummary(data) {
-    const summary = $("summary");
-    summary.innerHTML = "";
+  function renderAll(data) {
+    renderSummary(data);
+    renderTables(data);
+    drawWheel(data);
+  }
 
-    const addKV = (k, v) => {
-      const dk = document.createElement("div");
-      dk.textContent = k;
-      const dv = document.createElement("div");
-      dv.textContent = v;
-      summary.appendChild(dk);
-      summary.appendChild(dv);
+  // --- Rendering UI ---
+
+  function renderSummary(data) {
+    const grid = $("summaryGrid");
+    grid.innerHTML = "";
+    
+    if (!data?.result) return;
+    
+    const r = data.result;
+    const t = data.normalized || {};
+
+    // Helper Card
+    const addCard = (label, val) => {
+      const div = document.createElement("div");
+      div.className = "kv-item";
+      div.innerHTML = `<div class="kv-label">${label}</div><div class="kv-val">${val}</div>`;
+      grid.appendChild(div);
     };
 
-    if (!data?.result) {
-      addKV("Status", "Keine Daten");
-      $("chips").innerHTML = "";
-      return;
-    }
+    addCard("Datum (Lokal)", t.localIso ? t.localIso.replace("T", " ") : "-");
+    addCard("UTC", t.utcIso ? t.utcIso.replace("T", " ") : "-");
+    
+    // Quick Planeten
+    if(r.ascendant) addCard("Aszendent", `${getSignInfo(r.ascendant.sign).glyph} ${getSignInfo(r.ascendant.sign).label}`);
+    if(r.sun) addCard("Sonne", `${getSignInfo(r.sun.sign).glyph} ${getSignInfo(r.sun.sign).label}`);
+    if(r.moon) addCard("Mond", `${getSignInfo(r.moon.sign).glyph} ${getSignInfo(r.moon.sign).label}`);
 
-    const r = data.result ?? {};
-    const t = data?.normalized?.time ?? data?.normalized ?? {};
-
-    addKV("TZ", t.tz ?? "-");
-    addKV("Local", t.localIso ?? "-");
-    addKV("UTC", t.utcIso ?? "-");
-    addKV("JD (UT)", typeof t.jdUt === "number" ? t.jdUt.toFixed(8) : "-");
-
-    addKV("ASC", fmtBody(r.ascendant));
-    if (r.mc) addKV("MC", fmtBody(r.mc));
-    addKV("Sun", fmtBody(r.sun));
-    addKV("Moon", fmtBody(r.moon));
-
+    // Chips
     const chips = $("chips");
     chips.innerHTML = "";
-
-    const el = r.elements;
-    if (el) {
-      chips.appendChild(chip(`Elements: dominant=${el.dominant}${el.triple ? `, triple=${el.triple}` : ""}`));
-      if (el.counts) chips.appendChild(chip(`Counts: fire=${el.counts.fire} earth=${el.counts.earth} air=${el.counts.air} water=${el.counts.water}`));
-      if (el.label) chips.appendChild(chip(`Label: ${el.label}`));
+    if(r.chartRuler) {
+      const rulerName = BODY_LABEL_DE[r.chartRuler.body] || r.chartRuler.body || r.chartRuler;
+      chips.innerHTML += `<div class="chip">Herrscher: <b>${rulerName}</b></div>`;
     }
-
-    if (r.chartRuler) {
-      chips.appendChild(chip(`Chart ruler: ${r.chartRuler.body ?? r.chartRuler}`));
-      if (r.chartRuler.sign) chips.appendChild(chip(`Ruler sign: ${r.chartRuler.sign}`));
-      if (typeof r.chartRuler.house === "number") chips.appendChild(chip(`Ruler house: H${r.chartRuler.house}`));
+    if(r.elements?.dominant) {
+      chips.innerHTML += `<div class="chip">Dominant: ${r.elements.dominant}</div>`;
     }
-
-    if (r.houses?.system) chips.appendChild(chip(`Houses: system=${r.houses.system}`));
   }
 
   function renderTables(data) {
-    const planetTbody = $("planetTable").querySelector("tbody");
-    const houseTbody = $("houseTable").querySelector("tbody");
-    planetTbody.innerHTML = "";
-    houseTbody.innerHTML = "";
+    const pBody = $("planetTable").querySelector("tbody");
+    const hBody = $("houseTable").querySelector("tbody");
+    pBody.innerHTML = "";
+    hBody.innerHTML = "";
 
-    if (!data?.result) return;
+    if (!data?.result) {
+        pBody.innerHTML = "<tr><td colspan='4' style='text-align:center; padding:20px;'>Keine Daten</td></tr>";
+        return;
+    }
 
     const r = data.result;
 
-    // Planets table: include sun/moon/asc + planets object
-    const rows = [];
-
+    // 1. Planeten Liste sammeln
+    let rows = [];
     if (r.ascendant) rows.push({ key: "ascendant", ...r.ascendant });
     if (r.mc) rows.push({ key: "mc", ...r.mc });
     if (r.sun) rows.push({ key: "sun", ...r.sun });
     if (r.moon) rows.push({ key: "moon", ...r.moon });
-
+    
     if (r.planets) {
-      for (const [k, v] of Object.entries(r.planets)) {
-        if (!v) continue;
-        rows.push({ key: k, ...v });
-      }
+        Object.entries(r.planets).forEach(([k, v]) => {
+            if(v) rows.push({ key: k, ...v });
+        });
     }
 
-    for (const p of rows) {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${escapeHtml(BODY_LABEL[p.key] ?? p.key)}</td>
-        <td>${escapeHtml((SIGN_GLYPH[p.sign] ? SIGN_GLYPH[p.sign] + " " : "") + (p.sign ?? "-"))}</td>
-        <td class="mono">${typeof p.longitude === "number" ? p.longitude.toFixed(6) : "-"}</td>
-        <td class="mono">${typeof p.degreeInSign === "number" ? p.degreeInSign.toFixed(6) : "-"}</td>
-        <td>${typeof p.house === "number" ? "H" + p.house : "-"}</td>
-      `;
-      planetTbody.appendChild(tr);
-    }
-
-    // Houses table: cusps 1..12 expected at result.houses.cusps
-    const cusps = r.houses?.cusps;
-    if (Array.isArray(cusps) && cusps.length >= 12) {
-      for (let i = 0; i < 12; i++) {
-        const lon = cusps[i];
-        const z = (typeof lon === "number") ? zodiacFromLongitude(lon) : null;
+    // 2. Planeten rendern
+    rows.forEach(p => {
         const tr = document.createElement("tr");
+        const name = BODY_LABEL_DE[p.key] || p.key;
+        const signData = getSignInfo(p.sign);
+        
+        // Grad formatieren: XX°YY'
+        const degVal = p.degreeInSign || 0;
+        const deg = Math.floor(degVal);
+        const min = Math.floor((degVal - deg) * 60);
+        const posStr = `${deg}° ${String(min).padStart(2, '0')}'`;
+
         tr.innerHTML = `
-          <td>H${i+1}</td>
-          <td>${z ? escapeHtml((SIGN_GLYPH[z.sign] ? SIGN_GLYPH[z.sign] + " " : "") + z.sign) : "-"}</td>
-          <td class="mono">${typeof lon === "number" ? lon.toFixed(6) : "-"}</td>
-          <td class="mono">${z ? z.degreeInSign.toFixed(6) : "-"}</td>
+          <td style="font-weight:600;">${name}</td>
+          <td>
+            <span class="sign-badge sign-${signData.element}">
+              <span style="font-size:1.1em; line-height:1;">${signData.glyph}</span> 
+              ${signData.label}
+            </span>
+          </td>
+          <td class="mono">${posStr}</td>
+          <td>${p.house ? "H" + p.house : "-"}</td>
         `;
-        houseTbody.appendChild(tr);
-      }
+        pBody.appendChild(tr);
+    });
+
+    // 3. Häuser rendern
+    if (r.houses?.cusps) {
+        r.houses.cusps.forEach((lon, i) => {
+             const z = zodiacFromLongitude(lon);
+             const signData = getSignInfo(z.sign);
+             const degVal = z.degreeInSign;
+             const deg = Math.floor(degVal);
+             const min = Math.floor((degVal - deg) * 60);
+
+             const tr = document.createElement("tr");
+             tr.innerHTML = `
+                <td><b>Haus ${i+1}</b></td>
+                <td>
+                    <span class="sign-badge sign-${signData.element}">
+                        ${signData.glyph} ${signData.label}
+                    </span>
+                </td>
+                <td class="mono">${deg}° ${String(min).padStart(2,'0')}'</td>
+             `;
+             hBody.appendChild(tr);
+        });
     }
   }
 
-  function chip(text) {
-    const d = document.createElement("div");
-    d.className = "chip";
-    d.textContent = text;
-    return d;
-  }
+  // --- Logic Helpers ---
 
   function zodiacFromLongitude(lon) {
+    const SIGNS_ARR = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
     const v = clamp360(lon);
-    if (v == null) return null;
+    if (v == null) return { sign: "-", degreeInSign: 0 };
     const idx = Math.floor(v / 30);
-    const sign = SIGNS[idx] ?? "Aries";
-    return { sign, degreeInSign: v - idx * 30 };
+    return { sign: SIGNS_ARR[idx] || "Aries", degreeInSign: v - idx * 30 };
   }
+
+  // --- Canvas Drawing (High DPI) ---
 
   function drawWheel(data) {
     const canvas = $("wheel");
     const ctx = canvas.getContext("2d");
+    const W = canvas.width;
+    const H = canvas.height;
+    
+    // Reset
+    ctx.clearRect(0,0,W,H);
 
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
+    // Style config
+    const colors = {
+      fire: "rgba(255, 230, 220, 0.5)",
+      earth: "rgba(220, 255, 230, 0.5)",
+      air: "rgba(220, 240, 255, 0.5)",
+      water: "rgba(220, 230, 255, 0.5)",
+      line: "rgba(100,100,100,0.2)",
+      text: "#444"
+    };
 
-    // background
-    ctx.fillStyle = getComputedStyle(document.body).backgroundColor;
-    ctx.fillRect(0, 0, W, H);
+    const cx = W/2, cy = H/2;
+    // Radien relativ zur Canvas Größe
+    const R_OUTER = W * 0.48;
+    const R_INNER = W * 0.38;
+    const R_BODIES = W * 0.30;
 
-    const cx = W / 2, cy = H / 2;
-    const R = Math.min(W, H) * 0.42;
-
-    // rings
-    ctx.strokeStyle = "rgba(127,127,127,.7)";
+    // Hintergrund Ring
+    ctx.beginPath();
+    ctx.arc(cx, cy, R_OUTER, 0, Math.PI*2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+    ctx.strokeStyle = colors.line;
     ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.stroke();
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.arc(cx, cy, R*0.7, 0, Math.PI*2); ctx.stroke();
+    ctx.stroke();
 
-    // sign separators
+    // 12 Segmente Zeichnen (Zeichen)
+    const SIGNS_ARR = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+    
     for (let i = 0; i < 12; i++) {
-      const deg = i * 30;
-      const a = degToRad(deg);
-      linePolar(ctx, cx, cy, R*0.7, R, a, "rgba(127,127,127,.55)", 1);
-    }
+        // Startwinkel (Aries startet bei 0° rechts mathematisch, aber Astrologie 0° Aries ist "9 Uhr" in Charts? 
+        // Standard Mathe: 0 = 3 Uhr. Astrologie Konvention in Code-Bibliotheken ist oft 0 = 0° Widder.
+        // Wir zeichnen einfach 0° bei 3 Uhr Position gegen den Uhrzeigersinn, das ist der Standard für rohe Longituden.
+        
+        const degStart = i * 30;
+        const degEnd = (i+1) * 30;
+        
+        const signName = SIGNS_ARR[i];
+        const elem = SIGN_ELEMENTS[signName];
+        
+        // Slice füllen
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, R_OUTER, -degToRad(degStart), -degToRad(degEnd), true); // Minus für CCW visual correction wenn nötig, aber wir nutzen Standard math coords hier.
+        // Moment: Canvas y ist inverted. Math.cos/sin Standard ist CCW.
+        // Wir nutzen Hilfsfunktion degToRad.
+        
+        // Korrekte Füllung des Rings
+        ctx.beginPath();
+        ctx.arc(cx, cy, R_OUTER, degToRad(degStart), degToRad(degEnd));
+        ctx.arc(cx, cy, R_INNER, degToRad(degEnd), degToRad(degStart), true);
+        ctx.fillStyle = colors[elem];
+        ctx.fill();
+        ctx.stroke();
 
-    // sign labels
-    ctx.font = "16px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    ctx.fillStyle = "rgba(127,127,127,.95)";
-    for (let i = 0; i < 12; i++) {
-      const mid = i*30 + 15;
-      const a = degToRad(mid);
-      const x = cx + Math.cos(a) * (R*0.86);
-      const y = cy - Math.sin(a) * (R*0.86);
-      const sign = SIGNS[i];
-      const label = `${SIGN_GLYPH[sign] ?? ""} ${sign}`;
-      drawCentered(ctx, label, x, y);
+        // Label
+        const mid = i * 30 + 15;
+        const rTxt = (R_OUTER + R_INNER) / 2;
+        const txtX = cx + Math.cos(degToRad(mid)) * rTxt;
+        const txtY = cy - Math.sin(degToRad(mid)) * rTxt;
+        
+        ctx.fillStyle = "#222";
+        ctx.font = "bold 32px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(SIGN_GLYPH[signName], txtX, txtY);
     }
+    
+    // Innere Löschung (damit es ein Ring ist)
+    ctx.beginPath();
+    ctx.arc(cx, cy, R_INNER, 0, Math.PI*2);
+    ctx.fillStyle = getComputedStyle(document.body).backgroundColor; // Transparenz simulieren oder Body BG
+    ctx.fill();
+    ctx.stroke();
 
-    if (!data?.result) {
-      ctx.fillStyle = "rgba(127,127,127,.85)";
-      ctx.font = "14px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-      drawCentered(ctx, "Keine Daten", cx, cy);
-      return;
+    if(!data?.result) {
+        ctx.fillStyle = "#aaa";
+        ctx.font = "30px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Bereit", cx, cy);
+        return;
     }
 
     const r = data.result;
 
-    // optional houses
-    const showHouses = $("toggleHouses").checked;
-    if (showHouses && Array.isArray(r.houses?.cusps) && r.houses.cusps.length >= 12) {
-      const cusps = r.houses.cusps;
-
-      for (let i = 0; i < 12; i++) {
-        const lon = clamp360(cusps[i]);
-        if (lon == null) continue;
-        const a = degToRad(lon);
-        linePolar(ctx, cx, cy, R*0.7, R, a, "rgba(180,180,180,.45)", 1);
-      }
-
-      // mark ASC/MC
-      if (r.ascendant?.longitude != null) drawMarker(ctx, cx, cy, R, r.ascendant.longitude, "ASC");
-      if (r.mc?.longitude != null) drawMarker(ctx, cx, cy, R, r.mc.longitude, "MC");
+    // Häuser Linien
+    if($("toggleHouses").checked && r.houses?.cusps) {
+        r.houses.cusps.forEach(cusp => {
+             const angle = degToRad(cusp);
+             ctx.beginPath();
+             ctx.moveTo(cx, cy);
+             ctx.lineTo(cx + Math.cos(angle) * R_INNER, cy - Math.sin(angle) * R_INNER);
+             ctx.strokeStyle = "rgba(0,0,0,0.15)";
+             ctx.lineWidth = 1;
+             ctx.stroke();
+        });
+        
+        // Mark AC / MC extra
+        if(r.ascendant) drawMarkerLine(ctx, cx, cy, R_INNER, r.ascendant.longitude, "AC", "red");
+        if(r.mc) drawMarkerLine(ctx, cx, cy, R_INNER, r.mc.longitude, "MC", "blue");
     }
 
-    // collect bodies
-    const bodies = [];
-    if (r.sun?.longitude != null) bodies.push({ key: "sun", lon: r.sun.longitude, sign: r.sun.sign });
-    if (r.moon?.longitude != null) bodies.push({ key: "moon", lon: r.moon.longitude, sign: r.moon.sign });
-    if (r.ascendant?.longitude != null) bodies.push({ key: "ascendant", lon: r.ascendant.longitude, sign: r.ascendant.sign });
-    if (r.planets) {
-      for (const [k, v] of Object.entries(r.planets)) {
-        if (v && v.longitude != null) bodies.push({ key: k, lon: v.longitude, sign: v.sign });
-      }
+    // Planeten
+    let bodies = [];
+    if (r.sun) bodies.push({ l: "☉", ...r.sun });
+    if (r.moon) bodies.push({ l: "☽", ...r.moon });
+    // Planeten adden...
+    const pMap = { mercury:"☿", venus:"♀", mars:"♂", jupiter:"♃", saturn:"♄", uranus:"♅", neptune:"♆", pluto:"♇" };
+    if(r.planets) {
+        Object.entries(r.planets).forEach(([k,v]) => {
+            if(v) bodies.push({ l: pMap[k]||k.substr(0,2), ...v });
+        });
     }
 
-    // plot points + labels
-    const used = new Map(); // lon bucket -> count (to jitter labels)
-    for (const b of bodies) {
-      const lon = clamp360(b.lon);
-      if (lon == null) continue;
+    // Collision detection simple (Radius Variation wenn nah beieinander)
+    bodies.sort((a,b) => a.longitude - b.longitude);
+    
+    // Zeichnen
+    bodies.forEach((b, i) => {
+        const a = degToRad(b.longitude);
+        // Kleiner Jitter radius um Überlappung zu minimieren (sehr simpel)
+        let rPos = R_BODIES;
+        
+        // Linie zum Grad
+        const px = cx + Math.cos(a) * rPos;
+        const py = cy - Math.sin(a) * rPos;
 
-      const a = degToRad(lon);
-      const px = cx + Math.cos(a) * (R*0.7);
-      const py = cy - Math.sin(a) * (R*0.7);
+        // Stick
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a)*(R_INNER-5), cy - Math.sin(a)*(R_INNER-5));
+        ctx.lineTo(px, py);
+        ctx.strokeStyle = "#888";
+        ctx.lineWidth = 1;
+        ctx.stroke();
 
-      ctx.fillStyle = "rgba(220,220,220,.95)";
-      ctx.strokeStyle = "rgba(40,40,40,.4)";
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(px, py, 5.5, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        // Dot background
+        ctx.beginPath();
+        ctx.arc(px, py, 14, 0, Math.PI*2);
+        ctx.fillStyle = "#fff";
+        ctx.fill();
+        ctx.strokeStyle = "#ccc";
+        ctx.stroke();
 
-      const bucket = Math.round(lon * 2) / 2; // 0.5° bucket
-      const n = (used.get(bucket) ?? 0);
-      used.set(bucket, n + 1);
-
-      const lx = cx + Math.cos(a) * (R*0.78);
-      const ly = cy - Math.sin(a) * (R*0.78) + n * 12;
-
-      ctx.fillStyle = "rgba(240,240,240,.95)";
-      ctx.font = "13px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-      const signGlyph = SIGN_GLYPH[b.sign] ? SIGN_GLYPH[b.sign] + " " : "";
-      const name = BODY_LABEL[b.key] ?? b.key;
-      const text = `${name} ${signGlyph}${lon.toFixed(1)}°`;
-      drawWithOutline(ctx, text, lx, ly);
-    }
-
-    ctx.fillStyle = "rgba(127,127,127,.9)";
-    ctx.font = "12px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    drawCentered(ctx, "0° Aries →", cx + R*0.55, cy + 14);
+        // Glyph
+        ctx.fillStyle = "#000";
+        ctx.font = "20px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(b.l, px, py); // Glyph oder Label
+    });
   }
 
-  function drawMarker(ctx, cx, cy, R, lon, label) {
-    const a = degToRad(clamp360(lon) ?? 0);
-    const x = cx + Math.cos(a) * (R*0.98);
-    const y = cy - Math.sin(a) * (R*0.98);
-
-    ctx.save();
-    ctx.fillStyle = "rgba(127,127,127,.9)";
-    ctx.strokeStyle = "rgba(0,0,0,.35)";
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = "rgba(245,245,245,.95)";
-    ctx.font = "11px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-    drawCentered(ctx, label, x, y);
-    ctx.restore();
-  }
-
-  function degToRad(deg) {
-    return deg * Math.PI / 180;
-  }
-
-  function linePolar(ctx, cx, cy, r1, r2, a, stroke, w) {
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = w;
+  function drawMarkerLine(ctx, cx, cy, r, lon, txt, color) {
+    const a = degToRad(lon);
     ctx.beginPath();
-    ctx.moveTo(cx + Math.cos(a) * r1, cy - Math.sin(a) * r1);
-    ctx.lineTo(cx + Math.cos(a) * r2, cy - Math.sin(a) * r2);
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(a)*(r+20), cy - Math.sin(a)*(r+20));
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
     ctx.stroke();
+    
+    ctx.fillStyle = color;
+    ctx.font = "bold 14px sans-serif";
+    ctx.fillText(txt, cx + Math.cos(a)*(r+35), cy - Math.sin(a)*(r+35));
   }
 
-  function drawCentered(ctx, text, x, y) {
-    const m = ctx.measureText(text);
-    ctx.fillText(text, x - m.width / 2, y + 5);
-  }
+  function degToRad(deg) { return deg * Math.PI / 180; }
 
-  function drawWithOutline(ctx, text, x, y) {
-    ctx.save();
-    ctx.strokeStyle = "rgba(0,0,0,.45)";
-    ctx.lineWidth = 4;
-    ctx.strokeText(text, x, y);
-    ctx.fillText(text, x, y);
-    ctx.restore();
-  }
-
-  function escapeHtml(s) {
-    return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
-  function wire() {
-    $("btnRun").addEventListener("click", callApi);
-
-    $("btnFillExample").addEventListener("click", () => {
-      $("baseUrl").value = location.origin.includes("localhost") ? "http://localhost:3000" : location.origin;
-      $("endpoint").value = "/v1/astro/chart";
-      $("date").value = "1998-07-12";
-      $("time").value = "14:35";
-      $("lat").value = "50.94";
-      $("lon").value = "6.96";
-      $("tz").value = "Europe/Berlin";
-      $("houseSystem").value = "P";
-      $("apiKey").value = "";
-      setRequestPreview(buildRequestFromFields());
-      setStatus("Beispiel gesetzt.");
-      drawWheel(null);
-    });
-
-    $("btnCopyJson").addEventListener("click", () => {
-      const reqObj = getRequestPreview();
-      if (!reqObj) return setStatus("Request JSON ist ungültig.", "error");
-      copyText(JSON.stringify(reqObj, null, 2));
-    });
-
-    $("btnCopyCurl").addEventListener("click", () => {
-      const reqObj = getRequestPreview();
-      if (!reqObj) return setStatus("Request JSON ist ungültig.", "error");
-      copyText(buildCurl(reqObj));
-    });
-
-    $("toggleHouses").addEventListener("change", () => {
-      // redraw using current output if any
-      try {
-        const out = JSON.parse($("outJson").textContent || "{}");
-        drawWheel(out?.result ? out : null);
-      } catch {
-        drawWheel(null);
-      }
-    });
-
-    // live update preview from inputs
-    for (const id of ["date","time","lat","lon","tz","houseSystem"]) {
+  // Wiring
+  $("btnRun").addEventListener("click", callApi);
+  $("toggleHouses").addEventListener("change", () => drawWheel(JSON.parse($("outJson").textContent)));
+  $("btnFillExample").addEventListener("click", () => {
+     $("date").value = "1989-11-09"; // Fall der Mauer als Beispiel :)
+     $("time").value = "18:57";
+     $("lat").value = "52.52";
+     $("lon").value = "13.40";
+     setRequestPreview(buildRequestFromFields());
+  });
+  
+  // Inputs listener
+  ["date","time","lat","lon","tz","houseSystem"].forEach(id => {
       $(id).addEventListener("input", () => setRequestPreview(buildRequestFromFields()));
-    }
+  });
 
-    // init
-    setRequestPreview(buildRequestFromFields());
-    renderSummary(null);
-    renderTables(null);
-    drawWheel(null);
-  }
+  // Init
+  setRequestPreview(buildRequestFromFields());
 
-  wire();
 })();
