@@ -469,9 +469,9 @@
                              5.5;
 
       const fill =
-        b.kind === "angle" ? "rgba(120,120,120,.95)" :
-        b.kind === "main"  ? "rgba(240,240,240,.95)" :
-                             "rgba(190,190,190,.95)";
+        b.kind === "angle" ? "rgba(211, 72, 72, 0.95)" :
+        b.kind === "main"  ? "rgba(7, 225, 90, 0.95)" :
+                             "rgba(57, 137, 234, 0.95)";
 
       ctx.fillStyle = fill;
       ctx.strokeStyle = "rgba(40,40,40,.35)";
