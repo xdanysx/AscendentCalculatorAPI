@@ -10,6 +10,7 @@ const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const node_crypto_1 = __importDefault(require("node:crypto"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
+const path_1 = __importDefault(require("path"));
 const openapi_1 = require("./openapi");
 const bodies_1 = require("./astro/bodies");
 const schema_1 = require("./astro/schema");
@@ -22,6 +23,11 @@ const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "0.0.0.0";
 exports.app.set("trust proxy", 1);
 exports.app.use((0, helmet_1.default)());
+// Static demo hosting
+const publicDir = path_1.default.join(process.cwd(), "public");
+exports.app.use(express_1.default.static(publicDir));
+// Optional: Root direkt zur Demo
+exports.app.get("/", (_req, res) => res.redirect("/demo.html"));
 const corsOrigins = (process.env.CORS_ORIGINS ?? "")
     .split(",")
     .map(s => s.trim())

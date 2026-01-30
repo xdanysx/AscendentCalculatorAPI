@@ -4,7 +4,7 @@ import { it, expect } from "vitest";
 
 it("400 on invalid body", async () => {
   const res = await request(app)
-    .post("/v1/astro/ascendant")
+    .post("/v1/astro/chart")
     .send({ date: "x", time: 123 });
 
   expect(res.status).toBe(400);
@@ -13,7 +13,7 @@ it("400 on invalid body", async () => {
 
 it("400 on invalid lat/lon range", async () => {
   const res = await request(app)
-    .post("/v1/astro/ascendant")
+    .post("/v1/astro/chart")
     .send({
       date: "1998-07-12",
       time: "14:35",

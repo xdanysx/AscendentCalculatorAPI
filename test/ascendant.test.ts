@@ -4,7 +4,7 @@ import { app } from "../src/app";
 
 it("ascendant endpoint returns valid ranges", async () => {
   const res = await request(app)
-    .post("/v1/astro/ascendant")
+    .post("/v1/astro/chart")
     .send({
       date: "1998-07-12",
       time: "14:35",

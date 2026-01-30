@@ -11,8 +11,8 @@ it("same input yields same output (deterministic)", async () => {
     tz: "Europe/Berlin"
   };
 
-  const a = await request(app).post("/v1/astro/ascendant").send(body);
-  const b = await request(app).post("/v1/astro/ascendant").send(body);
+  const a = await request(app).post("/v1/astro/chart").send(body);
+  const b = await request(app).post("/v1/astro/chart").send(body);
 
   expect(a.status).toBe(200);
   expect(b.status).toBe(200);
