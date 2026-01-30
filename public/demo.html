@@ -3,389 +3,355 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Astro Chart Tester – Full Width</title>
+  <title>Horoskop-Tester – Chart API</title>
   <style>
-    :root {
-      --bg-body: #f8f9fa;
-      --bg-card: #ffffff;
-      --border-color: rgba(0,0,0,0.12);
-      --text-main: #1a1a1a;
-      --text-muted: #666;
-      --accent: #2563eb;
-      
-      /* Element Colors (Soft) */
-      --elem-fire: #fff0eb;
-      --elem-earth: #ecfdf5;
-      --elem-air: #f0f9ff;
-      --elem-water: #eff6ff;
-      --elem-fire-text: #b91c1c;
-      --elem-earth-text: #047857;
-      --elem-air-text: #0369a1;
-      --elem-water-text: #1d4ed8;
+    :root { color-scheme: light dark; }
 
-      color-scheme: light dark; 
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 0;
+      overflow-x: hidden;
     }
 
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg-body: #111;
-        --bg-card: #1e1e1e;
-        --border-color: rgba(255,255,255,0.15);
-        --text-main: #eee;
-        --text-muted: #aaa;
-        
-        --elem-fire: #451a1a;
-        --elem-earth: #1a3325;
-        --elem-air: #1a2e3d;
-        --elem-water: #1a2342;
-        --elem-fire-text: #fca5a5;
-        --elem-earth-text: #6ee7b7;
-        --elem-air-text: #7dd3fc;
-        --elem-water-text: #93c5fd;
-      }
+    header {
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(127,127,127,.35);
     }
 
-    body { 
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; 
-      margin: 0; 
-      background: var(--bg-body); 
-      color: var(--text-main);
+    /* max width container, no overflow */
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
     }
 
-    header { 
-      padding: 20px 24px; 
-      background: var(--bg-card);
-      border-bottom: 1px solid var(--border-color);
+    /* 2 columns on wide screens, stacked on smaller */
+    .layout {
+      display: grid;
+      grid-template-columns: 460px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      border: 1px solid rgba(127,127,127,.35);
+      border-radius: 14px;
+      padding: 14px;
+      min-width: 0; /* prevents grid overflow */
+    }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    @media (max-width: 560px) {
+      .row, .row3 { grid-template-columns: 1fr; }
+    }
+
+    label { display: block; font-size: 12px; opacity: .85; margin: 0 0 6px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(127,127,127,.45);
+      background: transparent;
+      color: inherit;
+    }
+
+    button {
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(127,127,127,.45);
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button.primary { border-color: rgba(127,127,127,.75); font-weight: 600; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+
+    .actions {
       display: flex;
-      justify-content: space-between;
+      gap: 10px;
       align-items: center;
       flex-wrap: wrap;
-      gap: 16px;
+      margin-top: 10px;
     }
 
-    h1 { margin: 0; font-size: 1.25rem; font-weight: 700; }
-    
-    /* Layout Grid - Responsive & 100% Width */
-    main { 
-      display: grid; 
-      /* Input spalte links (min 350px), Ergebnis rechts (Rest) */
-      grid-template-columns: minmax(350px, 1fr) 2fr; 
-      gap: 24px; 
-      padding: 24px; 
-      max-width: 100%;
-      box-sizing: border-box;
+    .hint { font-size: 12px; opacity: .8; }
+    .error { color: #c23; font-weight: 600; }
+    .ok { color: #2a7; font-weight: 600; }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 190px 1fr;
+      gap: 8px 10px;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    @media (max-width: 560px) {
+      .kv { grid-template-columns: 1fr; }
+      .kv div:nth-child(odd) { font-weight: 700; opacity: 1; margin-top: 8px; }
     }
 
-    /* Stack on smaller screens */
-    @media (max-width: 980px) { 
-      main { grid-template-columns: 1fr; } 
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chip { border: 1px solid rgba(127,127,127,.45); border-radius: 999px; padding: 6px 10px; font-size: 12px; }
+
+    .sectionTitle { font-weight: 700; margin: 14px 0 8px; }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.35;
     }
 
-    .card { 
-      background: var(--bg-card);
-      border: 1px solid var(--border-color); 
-      border-radius: 16px; 
-      padding: 24px; 
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    .grid2 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+
+    .panel {
+      border: 1px solid rgba(127,127,127,.25);
+      border-radius: 12px;
+      padding: 12px;
+      min-width: 0;
     }
 
-    /* Form Layouts */
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-    
-    label { 
-      display: block; 
-      font-size: 0.85rem; 
-      font-weight: 500; 
-      color: var(--text-muted); 
-      margin-bottom: 6px; 
+    /* Tables don't blow up width: scroll inside */
+    .tableWrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid rgba(127,127,127,.20);
+      border-radius: 12px;
     }
-    
-    input, select, textarea { 
-      width: 100%; 
-      box-sizing: border-box; 
-      padding: 12px; 
-      border-radius: 8px; 
-      border: 1px solid var(--border-color); 
-      background: transparent; 
-      color: inherit; 
-      font-size: 0.95rem;
-      transition: border-color 0.2s;
-    }
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: var(--accent);
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 520px; }
+    th, td { border-bottom: 1px solid rgba(127,127,127,.25); padding: 8px 6px; text-align: left; }
+    th { opacity: .85; font-size: 12px; }
+
+    /* Wheel */
+    .wheelWrap { display: grid; gap: 10px; }
+    canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 12px;
+      border: 1px solid rgba(127,127,127,.25);
+      max-width: 520px;
+      justify-self: start;
     }
 
-    button { 
-      padding: 10px 16px; 
-      border-radius: 8px; 
-      border: 1px solid var(--border-color); 
-      background: transparent; 
-      color: inherit; 
-      cursor: pointer; 
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-    button.primary { 
-      background: var(--accent); 
-      color: white; 
-      border: none; 
-    }
-    button:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
-    button:disabled { opacity: .5; cursor: not-allowed; }
+    .legend { display:flex; gap:10px; flex-wrap:wrap; }
+    .legendItem { display:flex; gap:8px; align-items:center; font-size:12px; opacity:.9; }
+    .swatch { width: 12px; height: 12px; border-radius: 999px; border: 1px solid rgba(127,127,127,.6); }
+    .sw-main { background: rgba(240,240,240,.95); }
+    .sw-planet { background: rgba(190,190,190,.95); }
+    .sw-angle { background: rgba(120,120,120,.95); }
 
-    .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 24px; }
-    
-    .hint { font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; }
-    .status { margin-left: auto; font-size: 0.85rem; font-weight: 600; }
-    .error { color: #e11d48; }
-    .ok { color: #10b981; }
-
-    /* Output Section */
-    .split-output { 
-      display: grid; 
-      grid-template-columns: 1fr 1fr; 
-      gap: 24px; 
+    .controlsLine {
+      display:flex;
+      gap:12px;
+      align-items:center;
+      flex-wrap: wrap;
     }
-    @media (max-width: 1200px) { .split-output { grid-template-columns: 1fr; } }
+    .checkboxLine { display:flex; gap:8px; align-items:center; font-size:12px; opacity:.9; }
 
-    .sectionTitle { 
-      font-size: 1.1rem; 
-      font-weight: 700; 
-      margin: 0 0 16px; 
-      display: flex; 
-      justify-content: space-between;
-      align-items: baseline;
-      border-bottom: 2px solid var(--border-color);
-      padding-bottom: 8px;
-    }
-
-    /* Key-Value Grid */
-    .kv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-    .kv-item { background: rgba(127,127,127,0.05); padding: 10px; border-radius: 8px; }
-    .kv-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-    .kv-val { font-size: 0.95rem; font-weight: 600; margin-top: 4px; }
-
-    /* Chips */
-    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
-    .chip { 
-      border: 1px solid var(--border-color); 
-      border-radius: 99px; 
-      padding: 4px 12px; 
-      font-size: 0.8rem; 
-      background: rgba(127,127,127,0.03);
-    }
-
-    /* Beautiful Tables */
-    .table-container { overflow-x: auto; margin-bottom: 24px; border-radius: 8px; border: 1px solid var(--border-color); }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 400px; }
-    th { text-align: left; padding: 12px 16px; background: rgba(127,127,127,0.05); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); }
-    td { padding: 10px 16px; border-top: 1px solid var(--border-color); vertical-align: middle; }
-    
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
-    
-    /* Sign Badges */
-    .sign-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-weight: 500;
-      font-size: 0.85rem;
-    }
-    /* Dynamic classes assigned by JS */
-    .sign-fire { background-color: var(--elem-fire); color: var(--elem-fire-text); }
-    .sign-earth { background-color: var(--elem-earth); color: var(--elem-earth-text); }
-    .sign-air { background-color: var(--elem-air); color: var(--elem-air-text); }
-    .sign-water { background-color: var(--elem-water); color: var(--elem-water-text); }
-
-    /* Canvas */
-    .canvas-wrapper { position: relative; width: 100%; max-width: 600px; margin: 0 auto; }
-    canvas { 
-      display: block; 
-      width: 100%; 
-      height: auto; 
-      aspect-ratio: 1/1; 
-      border-radius: 50%; /* optional: circular border */
-    }
-
-    pre { 
-      background: rgba(127,127,127,0.05); 
-      padding: 12px; 
-      border-radius: 8px; 
-      overflow-x: auto; 
-      font-size: 0.8rem; 
-    }
-    
-    details { margin-top: 12px; }
-    summary { cursor: pointer; font-size: 0.85rem; color: var(--accent); font-weight: 500; }
+    details { border: 1px solid rgba(127,127,127,.25); border-radius: 12px; padding: 10px 12px; }
+    summary { cursor: pointer; font-weight: 700; }
+    details > div { margin-top: 10px; font-size: 12px; opacity: .85; }
   </style>
 </head>
+
 <body>
-
-<header>
-  <div>
-    <h1>Astro Chart Tester</h1>
-    <div class="hint">API Client & Visualizer</div>
-  </div>
-  <div class="hint" style="text-align:right;">
-    Endpoints testen: <span class="mono">POST /v1/astro/chart</span>
-  </div>
-</header>
-
-<main>
-  <section class="card">
-    <div class="sectionTitle">Konfiguration</div>
-    
-    <div class="row">
-      <div>
-        <label for="baseUrl">API Basis URL</label>
-        <input id="baseUrl" placeholder="https://..."/>
-      </div>
-      <div>
-        <label for="endpoint">Endpunkt</label>
-        <input id="endpoint" value="/v1/astro/chart" />
+  <header>
+    <div class="wrap">
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:700; font-size:16px;">Horoskop-Tester</div>
+          <div class="hint">
+            Anfrage an <span class="mono">POST /v1/astro/chart</span> – Ergebnisse + klare Visualisierung.
+          </div>
+        </div>
       </div>
     </div>
+  </header>
 
-    <div class="row">
-      <div>
-        <label for="date">Datum (YYYY-MM-DD)</label>
-        <input id="date" type="date" value="1998-07-12" />
-      </div>
-      <div>
-        <label for="time">Uhrzeit (HH:mm)</label>
-        <input id="time" type="time" value="14:35" />
-      </div>
-    </div>
-
-    <div class="row">
-      <div>
-        <label for="lat">Breitengrad (Latitude)</label>
-        <input id="lat" type="number" step="0.01" value="50.94" placeholder="z.B. 52.52" />
-      </div>
-      <div>
-        <label for="lon">Längengrad (Longitude)</label>
-        <input id="lon" type="number" step="0.01" value="6.96" placeholder="z.B. 13.40" />
-      </div>
-    </div>
-
-    <div class="row3">
-      <div>
-        <label for="tz">Zeitzone</label>
-        <input id="tz" value="Europe/Berlin" placeholder="Optional" />
-      </div>
-      <div>
-        <label for="houseSystem">Häusersystem</label>
-        <select id="houseSystem">
-          <option value="" selected>Standard (Default)</option>
-          <option value="P">Placidus</option>
-          <option value="K">Koch</option>
-          <option value="R">Regiomontanus</option>
-          <option value="C">Campanus</option>
-          <option value="E">Equal</option>
-          <option value="W">Whole Sign (Ganzzeichen)</option>
-        </select>
-      </div>
-      <div>
-        <label for="apiKey">API Key (falls nötig)</label>
-        <input id="apiKey" type="password" placeholder="Bearer Token" />
-      </div>
-    </div>
-
-    <div class="actions">
-      <button class="primary" id="btnRun">Berechnen starten</button>
-      <button id="btnFillExample">Beispiel laden</button>
-      <button id="btnCopyJson">JSON kopieren</button>
-      <button id="btnCopyCurl">CURL kopieren</button>
-      <span id="status" class="status"></span>
-    </div>
-
-    <details>
-      <summary>Request JSON Vorschau ansehen</summary>
-      <textarea id="requestPreview" rows="6" spellcheck="false" style="margin-top:10px; font-family:monospace; font-size:12px;"></textarea>
-    </details>
-  </section>
-
-  <section class="card" id="outputSection" style="opacity:0.6; pointer-events:none;">
-    <div class="split-output">
-      
-      <div>
-        <div class="sectionTitle">
-          <span>Resultate</span>
-          <span id="httpMeta" class="hint"></span>
+  <div class="wrap">
+    <div class="layout">
+      <!-- LEFT: Inputs -->
+      <section class="card">
+        <div class="row">
+          <div>
+            <label for="baseUrl">API Basis-URL</label>
+            <input id="baseUrl"/>
+            <div class="hint" style="margin-top:6px;">Beispiel: <span class="mono">http://localhost:3000</span></div>
+          </div>
+          <div>
+            <label for="endpoint">Endpoint</label>
+            <input id="endpoint" value="/v1/astro/chart" />
+          </div>
         </div>
 
-        <div class="kv-grid" id="summaryGrid"></div>
+        <div class="row" style="margin-top:10px;">
+          <div>
+            <label for="date">Datum (JJJJ-MM-TT)</label>
+            <input id="date" value="1998-07-12" />
+          </div>
+          <div>
+            <label for="time">Uhrzeit (HH:mm)</label>
+            <input id="time" value="14:35" />
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <div>
+            <label for="lat">Breitengrad (Latitude)</label>
+            <input id="lat" type="number" step="0.01" value="50.94" />
+          </div>
+          <div>
+            <label for="lon">Längengrad (Longitude)</label>
+            <input id="lon" type="number" step="0.01" value="6.96" />
+          </div>
+        </div>
+
+        <div class="row3" style="margin-top:10px;">
+          <div>
+            <label for="tz">Zeitzone (optional)</label>
+            <input id="tz" value="Europe/Berlin" />
+            <div class="hint" style="margin-top:6px;">Wenn leer: Zeitzone wird aus Koordinaten abgeleitet.</div>
+          </div>
+          <div>
+            <label for="houseSystem">Häusersystem</label>
+            <select id="houseSystem">
+              <option value="" selected>(Standard)</option>
+              <option value="P">Placidus</option>
+              <option value="K">Koch</option>
+              <option value="R">Regiomontanus</option>
+              <option value="C">Campanus</option>
+              <option value="E">Gleiches Haus (Equal)</option>
+              <option value="W">Ganzes Zeichen (Whole Sign)</option>
+            </select>
+          </div>
+          <div>
+            <label for="apiKey">API-Schlüssel (optional)</label>
+            <input id="apiKey" placeholder="Bearer ..." />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary" id="btnRun">Berechnen</button>
+          <button id="btnFillExample">Beispiel setzen</button>
+          <button id="btnCopyJson">JSON kopieren</button>
+          <button id="btnCopyCurl">curl kopieren</button>
+          <span id="status" class="hint"></span>
+        </div>
+
+        <div style="margin-top:12px;">
+          <label for="requestPreview">Request JSON</label>
+          <textarea id="requestPreview" rows="9" spellcheck="false"></textarea>
+          <div class="hint" style="margin-top:6px;">Du kannst das JSON hier bearbeiten.</div>
+        </div>
+
+        <details style="margin-top:12px;">
+          <summary>Kurzer Überblick: Was kommt zurück?</summary>
+          <div>
+            <div><b>Aszendent</b>: Zeichen + Grad, außerdem Längengrad (0–360).</div>
+            <div><b>Medium Coeli</b>: höchster Punkt am Himmel (wenn du ihn in der API lieferst).</div>
+            <div><b>Planeten</b>: ekliptische Längengrade, umgerechnet in Zeichen/Grad.</div>
+            <div><b>Häuser</b>: 12 Hausspitzen (Cusp 1–12).</div>
+            <div><b>Chartherrscher</b>: Herrscherplanet des Aszendent-Zeichens.</div>
+          </div>
+        </details>
+      </section>
+
+      <!-- RIGHT: Output -->
+      <section class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div style="font-weight:700;">Ergebnis</div>
+          <div class="hint" id="httpMeta"></div>
+        </div>
+
+        <div class="kv" id="summary"></div>
         <div class="chips" id="chips"></div>
 
-        <div class="sectionTitle">Himmelskörper</div>
-        <div class="table-container">
-          <table id="planetTable">
-            <thead>
-              <tr>
-                <th>Objekt</th>
-                <th>Zeichen</th>
-                <th class="mono">Position (Grad)</th>
-                <th>Haus</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
+        <div class="grid2" style="margin-top:14px;">
+          <div class="panel">
+            <div class="controlsLine">
+              <div style="font-weight:700;">Zodiak-Rad</div>
+              <label class="checkboxLine">
+                <input id="toggleHouses" type="checkbox" checked />
+                Häuser anzeigen
+              </label>
+              <label class="checkboxLine">
+                <input id="toggleAllPlanets" type="checkbox" checked />
+                alle Planeten
+              </label>
+            </div>
 
-        <details>
-          <summary>Häuser-Tabelle anzeigen</summary>
-          <div class="table-container" style="margin-top:10px;">
-            <table id="houseTable">
-              <thead>
-                <tr>
-                  <th>Haus</th>
-                  <th>Spitze (Cusp) Zeichen</th>
-                  <th class="mono">Grad</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+            <div class="wheelWrap" style="margin-top:10px;">
+              <canvas id="wheel" width="700" height="700"></canvas>
+
+              <div class="legend">
+                <div class="legendItem"><span class="swatch sw-main"></span> Sonne / Mond</div>
+                <div class="legendItem"><span class="swatch sw-angle"></span> Aszendent / Medium Coeli</div>
+                <div class="legendItem"><span class="swatch sw-planet"></span> Planeten</div>
+              </div>
+
+              <div class="hint">
+                Darstellung: 0° Widder rechts. 12 Segmente à 30°. Marker stehen auf ihrer Position.
+                Details stehen in den Tabellen (ohne Textgewirr im Rad).
+              </div>
+            </div>
           </div>
-        </details>
 
-        <details>
-          <summary>Raw JSON Response</summary>
-          <pre id="outJson">{}</pre>
-          <div style="font-weight:bold; margin-top:10px;">Fehler / Issues:</div>
-          <pre id="outIssues" style="color:#e11d48">[]</pre>
-        </details>
-      </div>
+          <div class="panel">
+            <div style="font-weight:700;">Planetenübersicht</div>
+            <div class="hint">Sortiert nach Position (0–360°). Haus wird berechnet, wenn Häuser im Ergebnis vorhanden sind.</div>
 
-      <div>
-        <div class="sectionTitle">
-          <span>Radix Zeichnung</span>
-          <label style="font-size:0.8rem; font-weight:normal; display:flex; gap:6px; align-items:center;">
-            <input id="toggleHouses" type="checkbox" checked /> Häuserlinien
-          </label>
-        </div>
-        
-        <div class="canvas-wrapper">
-          <canvas id="wheel" width="1000" height="1000"></canvas>
-        </div>
+            <div class="tableWrap" style="margin-top:10px;">
+              <table id="planetTable">
+                <thead>
+                  <tr>
+                    <th>Körper</th>
+                    <th>Zeichen</th>
+                    <th class="mono">Grad im Zeichen</th>
+                    <th class="mono">Längengrad</th>
+                    <th>Haus</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
 
-        <div style="margin-top:16px; font-size:0.8rem; color:var(--text-muted);">
-          <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
-            <span style="display:flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:var(--elem-fire); border:1px solid var(--elem-fire-text); border-radius:50%;"></span> Feuer</span>
-            <span style="display:flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:var(--elem-earth); border:1px solid var(--elem-earth-text); border-radius:50%;"></span> Erde</span>
-            <span style="display:flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:var(--elem-air); border:1px solid var(--elem-air-text); border-radius:50%;"></span> Luft</span>
-            <span style="display:flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:var(--elem-water); border:1px solid var(--elem-water-text); border-radius:50%;"></span> Wasser</span>
+            <div style="margin-top:14px; font-weight:700;">Häuser</div>
+            <div class="hint">Hausspitzen (1–12). Haus 1 startet beim Aszendenten (Cusp 1).</div>
+
+            <div class="tableWrap" style="margin-top:10px;">
+              <table id="houseTable">
+                <thead>
+                  <tr>
+                    <th>Haus</th>
+                    <th>Zeichen</th>
+                    <th class="mono">Grad im Zeichen</th>
+                    <th class="mono">Längengrad</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
 
+        <div class="sectionTitle">JSON</div>
+        <pre id="outJson">{}</pre>
+
+        <div class="sectionTitle">Hinweise / Issues</div>
+        <pre id="outIssues">[]</pre>
+      </section>
     </div>
-  </section>
-</main>
+  </div>
 
-<script defer src="/demo.js"></script>
+  <script defer src="/demo.js"></script>
 </body>
 </html>
