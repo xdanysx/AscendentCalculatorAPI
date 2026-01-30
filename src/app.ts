@@ -22,7 +22,24 @@ const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "0.0.0.0";
 
 app.set("trust proxy", 1);
-app.use(helmet());
+app.use(
+  helmet({
+    frameguard: false, // X-Frame-Options abschalten
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
+        frameAncestors: [
+          "'self'",
+          "https://dspinella.de"
+        ]
+      }
+    }
+  })
+);
 
 const corsOrigins = (process.env.CORS_ORIGINS ?? "")
   .split(",")
