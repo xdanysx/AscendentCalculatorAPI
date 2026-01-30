@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 import swaggerUi from "swagger-ui-express";
 import path from "path"
 
+import { computeChart } from "./astro/chart";
 import { buildOpenApi } from "./openapi";
 import { bodyLongitude, type Body } from "./astro/bodies";
 import { AstroRequestSchema } from "./astro/schema";
@@ -13,7 +14,7 @@ import { normalizeAstroTime } from "./astro/time";
 import { computeAscendant } from "./astro/ascendant";
 import { zodiacFromEclipticLongitude } from "./astro/zodiac";
 import { computeElements } from "./astro/elements";
-import { computeChart } from "./astro/chart";
+
 
 export const app = express();
 
@@ -60,119 +61,12 @@ v1.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-async function handleChart(req: express.Request, res: express.Response) {
-   const parsed = AstroRequestSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ error: "INVALID_BODY", details: parsed.error.flatten() });
-  }
 
-  const input = parsed.data;
-
-  // 1) Time normalize
-  const t = normalizeAstroTime(input);
-  if (t.issues.some(i => i.severity === "error")) {
-    return res.status(400).json({ error: "INVALID_DATETIME", details: t.issues });
-  }
-
-  // 2) Ascendant
-  const a = await computeAscendant({
-    ...input,
-    tz: input.tz ?? t.normalized.tz
-  });
-
-  const baseIssues = [...t.issues, ...(a.issues ?? [])];
-  if (baseIssues.some(i => i.severity === "error")) {
-    return res.status(400).json({ error: "CALC_FAILED", details: baseIssues });
-  }
-
-  const ascLon = a.result?.ascendantLongitude;
-  if (typeof ascLon !== "number") {
-    return res.status(400).json({
-      error: "CALC_FAILED",
-      details: [
-        ...baseIssues,
-        { code: "ASC_NOT_AVAILABLE", severity: "error", message: "Ascendant longitude missing." }
-      ]
-    });
-  }
-
-  const jdUt = a.normalized?.jdUt;
-  if (typeof jdUt !== "number") {
-    return res.status(400).json({
-      error: "CALC_FAILED",
-      details: [
-        ...baseIssues,
-        { code: "JDUT_MISSING", severity: "error", message: "jdUt missing." }
-      ]
-    });
-  }
-
-  // 3) Sun/Moon
-  const sun = await bodyLongitude(jdUt, "sun");
-  const moon = await bodyLongitude(jdUt, "moon");
-
-
-  const issues = [...baseIssues, ...sun.issues, ...moon.issues];
-  if (issues.some(i => i.severity === "error")) {
-    return res.status(400).json({ error: "CALC_FAILED", details: issues });
-  }
-
-  if (typeof sun.lon !== "number" || typeof moon.lon !== "number") {
-    return res.status(400).json({
-      error: "CALC_FAILED",
-      details: [
-        ...issues,
-        { code: "SUN_MOON_NOT_AVAILABLE", severity: "error", message: "Sun/Moon longitude missing." }
-      ]
-    });
-  }
-
-  const planetBodies: Body[] = ["mercury","venus","mars","jupiter","saturn","uranus","neptune","pluto"];
-
-  const planetResults = await Promise.all(
-    planetBodies.map(async (b) => ({ body: b, ...(await bodyLongitude(jdUt, b)) }))
-  );
-
-  const planetIssues = planetResults.flatMap(p => (p as any).issues ?? []);
-  const issuesAll = [...issues, ...planetIssues];
-
-  if (issuesAll.some(i => i.severity === "error")) {
-    return res.status(400).json({ error: "CALC_FAILED", details: issuesAll });
-  }
-
-  const planets = Object.fromEntries(
-    planetResults.map(p => {
-      if (typeof p.lon !== "number") return [p.body, null];
-      const z = zodiacFromEclipticLongitude(p.lon);
-      return [p.body, { longitude: p.lon, sign: z.sign, degreeInSign: z.degreeInSign }];
-    })
-  );
-
-
-  const zAsc = zodiacFromEclipticLongitude(ascLon);
-  const zSun = zodiacFromEclipticLongitude(sun.lon);
-  const zMoon = zodiacFromEclipticLongitude(moon.lon);
-  const elements = computeElements({
-    sun: zSun.sign,
-    moon: zMoon.sign,
-    ascendant: zAsc.sign
-  });
-
-  return res.json({
-    input,
-    normalized: { time: t.normalized },
-    result: {
-      ascendant: { longitude: ascLon, sign: zAsc.sign, degreeInSign: zAsc.degreeInSign },
-      sun: { longitude: sun.lon, sign: zSun.sign, degreeInSign: zSun.degreeInSign },
-      moon: { longitude: moon.lon, sign: zMoon.sign, degreeInSign: zMoon.degreeInSign },
-      elements,
-      planets,
-    },
-    issues
-  });
-}
-
-v1.post("/astro/chart", handleChart);
+v1.post("/astro/chart", async (req, res) => {
+  const out = await computeChart(req.body);
+  if (!out.ok) return res.status(out.status).json({ error: out.error, details: out.details });
+  return res.json(out.body);
+});
 
 app.use("/v1", v1);
 // Static demo hosting
