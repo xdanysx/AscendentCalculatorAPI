@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AscendentCalculatorAPI – Chart Tester</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; }
+    header { padding: 18px 20px; border-bottom: 1px solid rgba(127,127,127,.35); }
+    main { display: grid; grid-template-columns: 420px 1fr; gap: 16px; padding: 16px; }
+    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+
+    .card { border: 1px solid rgba(127,127,127,.35); border-radius: 14px; padding: 14px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    label { display: block; font-size: 12px; opacity: .85; margin: 0 0 6px; }
+    input, select, textarea { width: 100%; box-sizing: border-box; padding: 10px 10px; border-radius: 10px; border: 1px solid rgba(127,127,127,.45); background: transparent; color: inherit; }
+    button { padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(127,127,127,.45); background: transparent; color: inherit; cursor: pointer; }
+    button.primary { border-color: rgba(127,127,127,.75); font-weight: 600; }
+    button:disabled { opacity: .6; cursor: not-allowed; }
+    .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .hint { font-size: 12px; opacity: .8; }
+    .error { color: #c23; font-weight: 600; }
+    .ok { color: #2a7; font-weight: 600; }
+
+    .split { display: grid; grid-template-columns: 1fr 360px; gap: 16px; }
+    @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+
+    pre { white-space: pre-wrap; word-break: break-word; margin: 0; font-size: 12px; line-height: 1.35; }
+    .kv { display: grid; grid-template-columns: 160px 1fr; gap: 8px 10px; font-size: 13px; margin-top: 10px; }
+    .kv div:nth-child(odd) { opacity: .8; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .chip { border: 1px solid rgba(127,127,127,.45); border-radius: 999px; padding: 6px 10px; font-size: 12px; }
+    canvas { width: 100%; height: auto; display: block; }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap;">
+      <div>
+        <div style="font-weight:700; font-size:16px;">Chart Tester</div>
+        <div class="hint">POST /v1/astro/chart – Eingaben testen + Planet-Visualisierung (Zodiac-Rad)</div>
+      </div>
+      <div class="hint">Tipp: Bei Render-URL CORS korrekt setzen (CORS_ORIGINS)</div>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="row">
+        <div>
+          <label for="baseUrl">API Base URL</label>
+          <input id="baseUrl" placeholder="http://localhost:3000" value="http://localhost:3000" />
+          <div class="hint" style="margin-top:6px;">Beispiel Render: https://ascendentcalculatorapi.onrender.com</div>
+        </div>
+        <div>
+          <label for="endpoint">Endpoint</label>
+          <input id="endpoint" value="/v1/astro/chart" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="date">Datum (YYYY-MM-DD)</label>
+          <input id="date" value="1998-07-12" />
+        </div>
+        <div>
+          <label for="time">Uhrzeit (HH:mm)</label>
+          <input id="time" value="14:35" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label for="lat">Latitude</label>
+          <input id="lat" type="number" step="0.000001" value="50.94" />
+        </div>
+        <div>
+          <label for="lon">Longitude</label>
+          <input id="lon" type="number" step="0.000001" value="6.96" />
+        </div>
+      </div>
+
+      <div class="row3" style="margin-top:10px;">
+        <div>
+          <label for="tz">Timezone (optional)</label>
+          <input id="tz" value="Europe/Berlin" />
+        </div>
+        <div>
+          <label for="houseSystem">House System</label>
+          <select id="houseSystem">
+            <option value="">(default)</option>
+            <option value="P" selected>Placidus (P)</option>
+            <option value="K">Koch (K)</option>
+            <option value="R">Regiomontanus (R)</option>
+            <option value="C">Campanus (C)</option>
+            <option value="E">Equal (E)</option>
+            <option value="W">Whole Sign (W)</option>
+          </select>
+        </div>
+        <div>
+          <label for="apiKey">API Key (optional)</label>
+          <input id="apiKey" placeholder="Bearer token" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="btnRun">Berechnen</button>
+        <button id="btnFillExample">Beispiel setzen</button>
+        <span id="status" class="hint"></span>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label for="requestPreview">Request JSON</label>
+        <textarea id="requestPreview" rows="8" spellcheck="false"></textarea>
+        <div class="hint" style="margin-top:6px;">Hinweis: Du kannst das JSON hier auch manuell editieren und berechnen.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="split">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div style="font-weight:700;">Ausgabe</div>
+            <div class="hint" id="httpMeta"></div>
+          </div>
+
+          <div class="kv" id="summary"></div>
+
+          <div class="chips" id="chips"></div>
+
+          <div style="margin-top:12px;">
+            <div style="font-weight:700; margin-bottom:8px;">JSON</div>
+            <pre id="outJson">{}</pre>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div style="font-weight:700; margin-bottom:8px;">Issues</div>
+            <pre id="outIssues">[]</pre>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-weight:700; margin-bottom:8px;">Zodiac-Rad</div>
+          <canvas id="wheel" width="700" height="700"></canvas>
+          <div class="hint" style="margin-top:8px;">
+            Darstellung: Kreis = 0–360°, 12 Segmente à 30°. Punkte = Bodies. 0° Widder rechts (klassische Mathe-Achse).
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script defer src="/demo.js"></script>
+</body>
+</html>
