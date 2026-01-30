@@ -13,6 +13,7 @@ import { normalizeAstroTime } from "./astro/time";
 import { computeAscendant } from "./astro/ascendant";
 import { zodiacFromEclipticLongitude } from "./astro/zodiac";
 import { computeElements } from "./astro/elements";
+import { computeChart } from "./astro/chart";
 
 export const app = express();
 
@@ -21,14 +22,6 @@ const HOST = process.env.HOST ?? "0.0.0.0";
 
 app.set("trust proxy", 1);
 app.use(helmet());
-
-// Static demo hosting
-const publicDir = path.join(process.cwd(), "public");
-app.use(express.static(publicDir));
-
-// Optional: Root direkt zur Demo
-app.get("/", (_req, res) => res.redirect("/demo.html"));
-
 
 const corsOrigins = (process.env.CORS_ORIGINS ?? "")
   .split(",")
@@ -182,12 +175,22 @@ async function handleChart(req: express.Request, res: express.Response) {
 v1.post("/astro/chart", handleChart);
 
 app.use("/v1", v1);
-app.get("/", (_req, res) => {
+// Static demo hosting
+const publicDir = path.join(process.cwd(), "public");
+app.use(express.static(publicDir));
+
+// Root: Demo
+app.get("/", (_req, res) => res.redirect("/demo.html"));
+
+// Optional: API info
+app.get("/api", (_req, res) => {
   res.json({
     ok: true,
     service: "ascendentcalculatorapi",
     docs: "/docs",
-    health: "/v1/health"
+    health: "/v1/health",
+    chart: "/v1/astro/chart",
+    ascendant: "/v1/astro/ascendant"
   });
 });
 const openapi = buildOpenApi();
